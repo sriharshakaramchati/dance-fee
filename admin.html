@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>Fee dashboard</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#fff7fa;color:#2a2030}
+header{background:#b4235f;color:#fff;padding:16px}h1{margin:0;font-size:1.2rem}main{max-width:760px;margin:0 auto;padding:12px}
+.card{background:#fff;border-radius:12px;padding:14px;margin:10px 0;box-shadow:0 1px 5px rgba(0,0,0,.08)}
+input{padding:10px;margin:4px 0;border:1px solid #ccc;border-radius:8px;font-size:1rem;width:100%}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button,a.b{padding:9px 12px;border:0;border-radius:8px;background:#b4235f;color:#fff;font-size:.9rem;cursor:pointer;text-decoration:none;display:inline-block;margin:2px}
+button.s,a.s{background:#fff;color:#b4235f;border:1.5px solid #b4235f}.paid{color:#1a7f37;font-weight:700}.due{color:#b4235f;font-weight:700}
+.row h3{margin:0 0 2px;font-size:1rem}.small{font-size:.85rem;color:#6b6075}#st{font-weight:600}
+</style></head><body>
+<header><h1>Fee dashboard</h1></header><main>
+<section class="card" id="login"><input id="pw" type="password" placeholder="Passcode"><button id="go">Open</button><div id="st" class="small"></div></section>
+<section id="app" hidden>
+<div class="card"><div id="sum" class="small"></div><button class="s" id="filt">Show unpaid only</button></div>
+<div class="card"><h3 id="ft">Add parent</h3><div class="g"><input id="parent" placeholder="Parent name"><input id="child" placeholder="Student name"><input id="email" type="email" placeholder="Email"><input id="wa" placeholder="WhatsApp (91...)"><input id="fee" type="number" placeholder="Monthly fee"><input id="dd" type="number" min="1" max="28" placeholder="Due day (1-28)"></div><button id="save">Save</button><button class="s" id="clr">Clear</button></div>
+<div id="list"></div></section></main>
+<script src="config.js"></script>
+<script>
+const C=window.FEE_CONFIG,$=id=>document.getElementById(id);let pass="",rows=[],edit=0,unpaid=false;
+async function api(o){const r=await fetch(C.reminderSignupUrl,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...o,passcode:pass})});return r.json()}
+async function load(){const d=await api({action:"list"});if(!d.ok){$("st").textContent=d.error||"Failed";return false}rows=d.rows;render();return true}
+$("go").onclick=async()=>{pass=$("pw").value;$("st").textContent="Checking...";if(!C.reminderSignupUrl){$("st").textContent="Backend not connected yet.";return}if(await load()){$("login").hidden=true;$("app").hidden=false}};
+$("filt").onclick=()=>{unpaid=!unpaid;$("filt").textContent=unpaid?"Show all":"Show unpaid only";render()};
+function clr(){edit=0;["parent","child","email","wa","fee","dd"].forEach(i=>$(i).value="");$("ft").textContent="Add parent"}$("clr").onclick=clr;
+$("save").onclick=async()=>{const cur=rows.find(r=>r.row===edit)||{};const d=await api({action:"save",row:edit||undefined,parent:$("parent").value,child:$("child").value,email:$("email").value,whatsapp:$("wa").value,fee:$("fee").value,dueDay:$("dd").value,paid:cur.paid||false,active:cur.active!==false});if(!d.ok)return alert(d.error);clr();load()};
+function render(){const list=$("list");list.innerHTML="";const act=rows.filter(r=>r.active);
+$("sum").textContent=act.length+" active, "+act.filter(r=>r.paid).length+" paid this month, "+act.filter(r=>!r.paid).length+" pending";
+rows.filter(r=>!unpaid||(r.active&&!r.paid)).forEach(r=>{const c=document.createElement("div");c.className="card row";
+const wa=r.whatsapp?"https://wa.me/"+r.whatsapp.replace(/\D/g,"")+"?text="+encodeURIComponent("Hi "+r.parent+", a reminder that "+r.child+"'s dance fee (Rs "+r.fee+") is due by day "+r.dueDay+". Pay here: "+location.origin+location.pathname.replace(/admin\.html$/,"")):"";
+c.innerHTML="<h3></h3><div class=small></div><div></div>";c.querySelector("h3").textContent=r.child+" ("+r.parent+")";
+c.querySelector(".small").textContent=r.email+" | Rs "+r.fee+" | due day "+r.dueDay+(r.active?"":" | inactive")+(r.lastReminded?" | reminded "+r.lastReminded.slice(0,10):"");
+const b=c.lastChild;const add=(t,f,s)=>{const x=document.createElement("button");x.textContent=t;if(s)x.className="s";x.onclick=f;b.append(x)};
+add(r.paid?"Paid (undo)":"Mark paid",async()=>{await api({action:"save",...r,paid:!r.paid});load()},!r.paid?false:true);
+add("Email reminder",async e=>{e.target.textContent="Sending...";const d=await api({action:"remind",row:r.row});e.target.textContent=d.ok?"Sent":"Failed"},true);
+if(wa){const a=document.createElement("a");a.className="b s";a.href=wa;a.target="_blank";a.rel="noopener";a.textContent="WhatsApp";b.append(a)}
+add("Edit",()=>{edit=r.row;$("parent").value=r.parent;$("child").value=r.child;$("email").value=r.email;$("wa").value=r.whatsapp;$("fee").value=r.fee;$("dd").value=r.dueDay;$("ft").textContent="Edit parent";scrollTo(0,0)},true);
+add(r.active?"Deactivate":"Activate",async()=>{await api({action:"save",...r,active:!r.active});load()},true);
+add("Delete",async()=>{if(confirm("Delete "+r.child+"?")){await api({action:"delete",row:r.row});load()}},true);
+list.append(c)})}
+</script></body></html>

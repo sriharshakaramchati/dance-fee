@@ -16,6 +16,7 @@ dl{margin:0}dt{font-size:.8rem;color:#6b6075;margin-top:10px}dd{margin:0;font-we
 dd button{border:1px solid #ddd;background:#f6f0f3;border-radius:6px;padding:2px 10px;cursor:pointer}
 input{width:100%;padding:12px;margin-top:8px;border:1px solid #ccc;border-radius:8px;font-size:1rem}
 h2{font-size:1.05rem;margin:0 0 6px}#msg{margin-top:8px;font-weight:600}
+.kid{border:1px solid #eee;border-radius:10px;padding:12px;margin-top:10px}.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:.8rem;font-weight:700}.b-N{background:#fde7ef;color:#b4235f}.b-C{background:#fff4d6;color:#8a6100}.b-Y{background:#dcf5e3;color:#1a7f37}
 footer{text-align:center;padding:20px;font-size:.8rem;color:#8a7f90}
 </style></head><body>
 <header><h1 id="cls"></h1><p>Monthly fee payment</p></header>
@@ -27,9 +28,11 @@ footer{text-align:center;padding:20px;font-size:.8rem;color:#8a7f90}
 <a id="upiBtn" class="btn">Pay in UPI app (on phone)</a></section>
 <section class="card"><h2>Bank transfer</h2><dl id="bank"></dl></section>
 <section class="card"><h2>Paid already?</h2><div class="small">Send a quick note so it is marked received.</div><a id="waBtn" class="btn alt" target="_blank" rel="noopener">Tell teacher on WhatsApp</a></section>
-<section class="card" id="signup" hidden><h2>Get a reminder before the due date</h2>
-<div class="small">We will email you a few days before each month's deadline.</div>
-<form id="f"><input name="parent" placeholder="Parent name" required><input name="child" placeholder="Student name" required><input name="email" type="email" placeholder="Email" required><input name="whatsapp" placeholder="WhatsApp number (optional)"><button class="btn" type="submit">Remind me</button></form><div id="msg"></div></section>
+<section class="card" id="acct" hidden><h2>My account</h2>
+<div id="gin"></div><div id="who" class="small"></div>
+<div id="kids"></div>
+<form id="addf" hidden><div class="small">Add your child to track their fee and get reminders.</div><input name="parent" placeholder="Parent name" required><input name="child" placeholder="Student name" required><input name="whatsapp" placeholder="WhatsApp number (optional)"><button class="btn" type="submit">Add</button></form>
+<div id="msg"></div></section>
 </main><footer id="foot"></footer>
 <script src="config.js"></script>
 <script>
@@ -46,6 +49,16 @@ const rows=[["UPI ID",C.upiId],["Account name",C.bank.accountName],["Account num
 rows.forEach(([k,v])=>{const dt=document.createElement("dt");dt.textContent=k;const dd=document.createElement("dd");const s=document.createElement("span");s.textContent=v;const b=document.createElement("button");b.textContent="Copy";b.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(v);b.textContent="Copied";setTimeout(()=>b.textContent="Copy",1200)};dd.append(s,b);$("bank").append(dt,dd)});
 $("waBtn").href="https://wa.me/"+C.whatsappNumber+"?text="+encodeURIComponent("Hi, I have paid the dance fee for "+$("mon").textContent+". Student name: ");
 $("foot").textContent=C.teacherName;
-if(C.reminderSignupUrl){$("signup").hidden=false;$("f").onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));$("msg").textContent="Saving...";
-try{await fetch(C.reminderSignupUrl,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify(d)});$("msg").textContent="Done. You will get an email reminder before each due date.";e.target.reset()}catch(x){$("msg").textContent="Could not save. Please try again."}}}
+let tok=sessionStorage.getItem("idt")||"";
+async function api(o){const r=await fetch(C.backendUrl,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...o,idToken:tok})});return r.json()}
+const LBL={N:"Not paid yet",C:"Waiting for teacher to confirm",Y:"Paid"};
+function showKids(d){$("who").textContent="Signed in as "+d.email;$("gin").hidden=true;const k=$("kids");k.innerHTML="";
+d.children.forEach(c=>{const el=document.createElement("div");el.className="kid";const t=document.createElement("div");t.style.fontWeight="700";t.textContent=c.child;
+const m=document.createElement("div");m.className="small";m.textContent=inr(c.fee)+" per month, due by day "+c.dueDay;const b=document.createElement("span");b.className="badge b-"+c.status;b.textContent=LBL[c.status];el.append(t,m,b);
+if(c.status==="N"){const i=document.createElement("input");i.placeholder="UPI reference / UTR (optional)";const x=document.createElement("button");x.className="btn";x.textContent="I have paid";x.onclick=async()=>{x.textContent="Saving...";const r=await api({action:"claim",row:c.row,reference:i.value});if(r.ok)showKids(r);else $("msg").textContent=r.error};el.append(i,x)}
+k.append(el)});
+$("addf").hidden=false;$("addf").onsubmit=async ev=>{ev.preventDefault();const f=Object.fromEntries(new FormData(ev.target));const r=await api({action:"addChild",...f});if(r.ok){ev.target.reset();showKids(r)}else $("msg").textContent=r.error}}
+async function onCred(resp){tok=resp.credential;sessionStorage.setItem("idt",tok);$("msg").textContent="";const d=await api({action:"me"});if(d.ok)showKids(d);else{$("msg").textContent=d.error;sessionStorage.removeItem("idt");tok=""}}
+if(C.backendUrl&&C.googleClientId){$("acct").hidden=false;const s=document.createElement("script");s.src="https://accounts.google.com/gsi/client";s.async=true;s.onload=async()=>{google.accounts.id.initialize({client_id:C.googleClientId,callback:onCred});google.accounts.id.renderButton($("gin"),{theme:"outline",size:"large",text:"signin_with",width:280});
+if(tok){const d=await api({action:"me"});if(d.ok)showKids(d);else{sessionStorage.removeItem("idt");tok=""}}};document.head.append(s)}
 </script></body></html>

@@ -15,6 +15,7 @@ window.FEE_CONFIG = {
     branch: "Branch"
   },
   whatsappNumber: "919999999999",                 // PLACEHOLDER: her number, country code, no +
-  reminderSignupUrl: "",                          // Apps Script web app URL (see SETUP.md). Empty hides the signup form.
+  backendUrl: "",                                 // Apps Script web app URL (see SETUP.md). Empty = static page only.
+  googleClientId: "",                             // Google OAuth Web client ID for Sign in with Google (see SETUP.md)
   reminderDaysBefore: 3
 };

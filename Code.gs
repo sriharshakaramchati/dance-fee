@@ -12,7 +12,7 @@ var CFG = {
   defaultDueDay: 20,                        // PLACEHOLDER
   daysBefore: 3,
   upiId: "yourname@upi",                    // PLACEHOLDER
-  siteUrl: "https://sriharshakaramchati.com/dance-fee/",
+  siteUrl: "https://sriharshakaramchati.com/soundarya/",
   teacherName: "Maddali Soundarya"
 };
 var HEAD = ["ID","Parent","Student","Email","WhatsApp","Fee (INR)","Due day","Status","Active","Created","Last reminded","Reference"];
